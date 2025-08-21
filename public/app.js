@@ -26,10 +26,11 @@ function initAvatar() {
   const mv = document.getElementById('rpm-avatar');
   if (!mv) return;
 
-  // Kamera auf Kopf zoomen
-  mv.setAttribute("camera-orbit", "0deg 90deg 1.2m");
-  mv.setAttribute("field-of-view", "15deg");
-  mv.removeAttribute("auto-rotate"); // keine Drehung
+  // 🎯 Kamera direkt auf Kopf richten
+  mv.setAttribute("camera-orbit", "0deg 100deg 0.8m");  // Höhe + nah ran
+  mv.setAttribute("field-of-view", "10deg");            // enger Zoom
+  mv.setAttribute("camera-target", "0m 1.6m 0m");       // Kopfmitte statt Körper
+  mv.removeAttribute("auto-rotate");                    // keine Drehung
 
   mv.addEventListener('load', () => {
     document.getElementById('status').textContent = '✅ Avatar geladen.';
@@ -39,6 +40,7 @@ function initAvatar() {
     document.getElementById('fallback').style.display = 'block';
   });
 }
+
 
 // --- Browser-Sprachsynthese ---
 function speak(text) {

@@ -10,7 +10,8 @@ async function playAvatar(text) {
     const res = await fetch("https://api.d-id.com/talks", {
       method: "POST",
       headers: {
-        "Authorization": "Basic " + btoa("YOUR_DID_API_KEY:"), // ⚠️ HIER API Key einsetzen
+        // ⚠️ Wichtig: deinen echten API-Key hier einsetzen
+        "Authorization": "Basic c3VjaG1hc2NoaW5lbmFhY2hlbkBnbWFpbC5jb20:2aPTcEiFRHtUwjn9eWnRW",
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
@@ -19,14 +20,15 @@ async function playAvatar(text) {
           input: text,
           provider: { type: "microsoft", voice_id: "de-DE-KatjaNeural" }
         },
-        // Dein Avatar-Bild als Grundlage (PNG/JPG), oder D-ID Preset-ID
+        // 👉 Hier kannst du dein Avatar-Bild (PNG/JPG) hinterlegen
+        // oder eine D-ID Vorlage nutzen
         source_url: "https://i.postimg.cc/XYZ/avatar.png"
       })
     });
     const data = await res.json();
 
     if (!data.result_url) {
-      throw new Error("D-ID API hat kein Video zurückgegeben.");
+      throw new Error("D-ID API hat kein Video zurückgegeben: " + JSON.stringify(data));
     }
 
     // Video einfügen
@@ -39,6 +41,7 @@ async function playAvatar(text) {
     video.controls = false;
     video.style.width = "100%";
     video.style.height = "100%";
+    video.style.borderRadius = "16px";
     container.appendChild(video);
 
   } catch (err) {

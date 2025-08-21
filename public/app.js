@@ -1,5 +1,5 @@
 // API-URL: direkt dein Node-Chatbot-Endpunkt
-const API_URL = 'https://www.profiausbau.com/api/chat';
+const API_URL = 'const API_URL = 'https://www.profiausbau.com:3000/api/chat';
 
 // --- MODEL-VIEWER laden ---
 async function loadModelViewer() {

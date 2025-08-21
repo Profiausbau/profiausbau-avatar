@@ -32,8 +32,8 @@ function initAvatar() {
   });
 }
 
-// --- Sprach-Ausgabe (TTS) ---
-function speak(text, onStart, onEnd) {
+// --- Sprach-Ausgabe (TTS) + Avatar-Animation ---
+function speak(text, mv) {
   if (!('speechSynthesis' in window)) {
     console.warn('⚠️ speechSynthesis wird nicht unterstützt');
     return;
@@ -44,10 +44,36 @@ function speak(text, onStart, onEnd) {
   u.pitch = 1;
   u.rate = 1;
 
-  if (onStart) u.onstart = onStart;
-  if (onEnd) u.onend = onEnd;
+  u.onstart = () => {
+    if (mv) {
+      // versuche Talking-Animation
+      try {
+        mv.setAttribute('animation-name', 'Talking');
+      } catch {
+        // Fallback: leichtes Nicken
+        let angle = 0;
+        mv._talkingInterval = setInterval(() => {
+          angle = (angle + 10) % 40;
+          mv.cameraOrbit = `0deg ${10 + Math.sin(angle / 10) * 5}deg 105%`;
+        }, 120);
+      }
+    }
+  };
 
-  window.speechSynthesis.cancel(); // evtl. alte Stimmen stoppen
+  u.onend = () => {
+    if (mv) {
+      try {
+        mv.setAttribute('animation-name', 'Idle');
+      } catch {}
+      if (mv._talkingInterval) {
+        clearInterval(mv._talkingInterval);
+        mv._talkingInterval = null;
+        mv.cameraOrbit = "0deg 10deg 105%"; // zurücksetzen
+      }
+    }
+  };
+
+  window.speechSynthesis.cancel();
   window.speechSynthesis.speak(u);
 }
 
@@ -109,22 +135,8 @@ function ui() {
       const reply = await ask(text);
       typing.textContent = reply;
 
-      // Avatar Animation + Sprechen
-      if (mv) {
-        const prev = mv.autoRotate;
-        mv.autoRotate = true;
-
-        speak(reply,
-          () => { // onStart
-            mv.autoRotate = true;
-          },
-          () => { // onEnd
-            mv.autoRotate = prev;
-          }
-        );
-      } else {
-        speak(reply);
-      }
+      // Avatar sprechen lassen
+      speak(reply, mv);
     } catch (err) {
       typing.textContent = 'Fehler: ' + err.message;
     }

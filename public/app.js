@@ -13,13 +13,16 @@ async function initBabylonAvatar() {
   const scene = new BABYLON.Scene(engine);
   scene.clearColor = new BABYLON.Color3(0.05, 0.07, 0.13);
 
+  // Kamera
   const camera = new BABYLON.ArcRotateCamera("camera", 0, 1.4, 1.2, new BABYLON.Vector3(0, 1.6, 0), scene);
   camera.attachControl(canvas, true);
   camera.lowerRadiusLimit = 0.6;
   camera.upperRadiusLimit = 2;
   camera.wheelDeltaPercentage = 0.01;
 
-  new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
+  // Licht → weiches Directional Light
+  const light = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(-1, -2, -1), scene);
+  light.intensity = 1.1;
 
   // Avatar laden (ReadyPlayer.me GLB)
   const result = await BABYLON.SceneLoader.ImportMeshAsync("", 
@@ -34,26 +37,26 @@ async function initBabylonAvatar() {
   return { scene, avatar, engine };
 }
 
-// --- Fake Lipsync (Mund + Kopfbewegung im Rhythmus vom Audio) ---
+// --- Fake Lipsync (nur Kopf + leichte "Mundbewegung") ---
 function makeLipsync(audioEl, avatar) {
-  const mouth = avatar.getChildMeshes().find(m => m.name.toLowerCase().includes("mouth"));
   let frame = 0;
 
   const anim = () => {
     if (audioEl.paused || audioEl.ended) {
-      if (mouth) mouth.scaling.y = 1; // Mund zurück
-      avatar.rotation = new BABYLON.Vector3(0, 0, 0);
+      avatar.scaling.y = 1; 
+      avatar.rotation.x = 0;
+      avatar.rotation.y = 0;
       return;
     }
 
     frame++;
-    // Mundbewegung pseudo-random
-    if (mouth) {
-      mouth.scaling.y = 1 + Math.random() * 0.4;
-    }
-    // Kopf leicht nicken / drehen
-    avatar.rotation.x = Math.sin(frame * 0.1) * 0.05;
-    avatar.rotation.y = Math.sin(frame * 0.07) * 0.05;
+
+    // Mundbewegung → Skalierung Y leicht modulieren
+    avatar.scaling.y = 1 + Math.sin(frame * 0.3) * 0.015;
+
+    // Kopfbewegung → sehr subtil
+    avatar.rotation.x = Math.sin(frame * 0.08) * 0.02;
+    avatar.rotation.y = Math.sin(frame * 0.05) * 0.02;
 
     requestAnimationFrame(anim);
   };
@@ -152,7 +155,7 @@ function ui() {
         `;
         typing.appendChild(indicator);
 
-        // Avatar Lippen/Kopf bewegen
+        // Avatar Kopf/Mund bewegen
         if (window.avatarInstance) {
           makeLipsync(audioPlayer, window.avatarInstance);
         }

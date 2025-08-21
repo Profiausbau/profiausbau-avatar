@@ -22,12 +22,9 @@ async function loadModelViewer() {
 function initAvatar() {
   const mv = document.getElementById('rpm-avatar');
   if (!mv) return;
-
-  // Kamera so einstellen, dass nur Kopf sichtbar ist
   mv.setAttribute("camera-orbit", "0deg 90deg 1.2m");
   mv.setAttribute("field-of-view", "15deg");
-  mv.removeAttribute("auto-rotate"); // nicht drehen
-
+  mv.removeAttribute("auto-rotate");
   mv.addEventListener('load', () => {
     document.getElementById('status').textContent = 'Avatar geladen.';
   });
@@ -37,48 +34,19 @@ function initAvatar() {
   });
 }
 
-// --- ElevenLabs Audio ---
-$voice_id = "21m00Tcm4TlvDq8ikWAM"; // Standard-Stimme
-$filename = "voice_" . uniqid() . ".mp3";
-$audio_file = __DIR__ . "/" . $filename;
-
-$tts_payload = json_encode([
-    "text" => $reply,
-    "model_id" => "eleven_multilingual_v2",
-    "voice_settings" => [
-        "stability" => 0.5,
-        "similarity_boost" => 0.8
-    ]
-]);
-
-$ch = curl_init("https://api.elevenlabs.io/v1/text-to-speech/$voice_id");
-curl_setopt_array($ch, [
-    CURLOPT_POST => true,
-    CURLOPT_POSTFIELDS => $tts_payload,
-    CURLOPT_HTTPHEADER => [
-        "Content-Type: application/json",
-        "xi-api-key: $ELEVEN_API_KEY"
-    ],
-    CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_BINARYTRANSFER => true // ⚠️ ganz wichtig für MP3
-]);
-$audio = curl_exec($ch);
-
-if ($audio === false) {
-    error_log("ElevenLabs Error: " . curl_error($ch));
-}
-curl_close($ch);
-
-$audio_url = null;
-if ($audio && strlen($audio) > 1000) { // kleine JSON-Fehlerantwort rausfiltern
-    file_put_contents($audio_file, $audio);
-    $audio_url = "https://www.profiausbau.com/api/" . $filename;
-} else {
-    error_log("ElevenLabs lieferte keine gültige MP3-Datei");
+// --- MP3 abspielen ---
+function playAudio(url) {
+  try {
+    const audio = new Audio(url);
+    audio.play();
+    return true;
+  } catch (e) {
+    console.warn("⚠️ Audio konnte nicht abgespielt werden:", e);
+    return false;
+  }
 }
 
-
-// --- Fallback mit Browser-Sprachsynthese ---
+// --- Fallback Browser-Sprachsynthese ---
 function speak(text) {
   if (!('speechSynthesis' in window)) {
     console.warn('⚠️ speechSynthesis wird nicht unterstützt');
@@ -88,12 +56,9 @@ function speak(text) {
   u.lang = 'de-DE';
   u.pitch = 1;
   u.rate = 1;
-
-  // Angenehme Stimme wählen (Google Deutsch)
   const voices = window.speechSynthesis.getVoices();
   const prefer = voices.find(v => v.lang === "de-DE" && v.name.includes("Google"));
   if (prefer) u.voice = prefer;
-
   window.speechSynthesis.cancel();
   window.speechSynthesis.speak(u);
 }
@@ -160,12 +125,10 @@ function ui() {
       if (audio) {
         ok = playAudio(audio);
       }
-
       // 2. Fallback Browser-Stimme
       if (!ok) {
         speak(reply);
       }
-
     } catch (err) {
       typing.textContent = 'Fehler: ' + err.message;
     }

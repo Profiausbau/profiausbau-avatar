@@ -22,9 +22,12 @@ async function loadModelViewer() {
 function initAvatar() {
   const mv = document.getElementById('rpm-avatar');
   if (!mv) return;
+
+  // Kamera so einstellen, dass nur Kopf sichtbar ist
   mv.setAttribute("camera-orbit", "0deg 90deg 1.2m");
   mv.setAttribute("field-of-view", "15deg");
-  mv.removeAttribute("auto-rotate");
+  mv.removeAttribute("auto-rotate"); // nicht drehen
+
   mv.addEventListener('load', () => {
     document.getElementById('status').textContent = 'Avatar geladen.';
   });
@@ -34,31 +37,23 @@ function initAvatar() {
   });
 }
 
-// --- MP3 abspielen ---
-function playAudio(url) {
-  try {
-    const audio = new Audio(url);
-    audio.play();
-    return true;
-  } catch (e) {
-    console.warn("⚠️ Audio konnte nicht abgespielt werden:", e);
-    return false;
-  }
-}
-
-// --- Fallback Browser-Sprachsynthese ---
+// --- Browser-Sprachsynthese (nur TTS, kein Labs) ---
 function speak(text) {
   if (!('speechSynthesis' in window)) {
     console.warn('⚠️ speechSynthesis wird nicht unterstützt');
     return;
   }
+
   const u = new SpeechSynthesisUtterance(text);
   u.lang = 'de-DE';
   u.pitch = 1;
   u.rate = 1;
+
+  // Versuche Google-Stimme zu wählen, wenn verfügbar
   const voices = window.speechSynthesis.getVoices();
   const prefer = voices.find(v => v.lang === "de-DE" && v.name.includes("Google"));
   if (prefer) u.voice = prefer;
+
   window.speechSynthesis.cancel();
   window.speechSynthesis.speak(u);
 }
@@ -117,18 +112,12 @@ function ui() {
     const typing = chatMsgs.lastChild.querySelector('.bubble');
 
     try {
-      const { reply, audio } = await ask(text);
+      const { reply } = await ask(text);
       typing.textContent = reply;
 
-      // 1. Versuche ElevenLabs-MP3
-      let ok = false;
-      if (audio) {
-        ok = playAudio(audio);
-      }
-      // 2. Fallback Browser-Stimme
-      if (!ok) {
-        speak(reply);
-      }
+      // Browser-TTS abspielen
+      speak(reply);
+
     } catch (err) {
       typing.textContent = 'Fehler: ' + err.message;
     }

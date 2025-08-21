@@ -1,5 +1,5 @@
-// API-URL: dein PHP-Endpunkt auf profiausbau.com
-const API_URL = 'https://www.profiausbau.com/api/chat.php';
+// API-URL: direkt dein Node-Chatbot-Endpunkt
+const API_URL = 'https://www.profiausbau.com/api/chat';
 
 // --- MODEL-VIEWER laden ---
 async function loadModelViewer() {
@@ -21,6 +21,7 @@ async function loadModelViewer() {
   throw new Error('❌ model-viewer konnte nicht geladen werden');
 }
 
+// --- Avatar einstellen ---
 function initAvatar() {
   const mv = document.getElementById('rpm-avatar');
   if (!mv) return;
@@ -28,23 +29,36 @@ function initAvatar() {
   // Kamera auf Kopf zoomen
   mv.setAttribute("camera-orbit", "0deg 90deg 1.2m");
   mv.setAttribute("field-of-view", "15deg");
-  mv.removeAttribute("auto-rotate"); // nicht drehen
+  mv.removeAttribute("auto-rotate"); // keine Drehung
 
   mv.addEventListener('load', () => {
-    document.getElementById('status').textContent = 'Avatar geladen.';
+    document.getElementById('status').textContent = '✅ Avatar geladen.';
   });
   mv.addEventListener('error', () => {
-    document.getElementById('status').textContent = 'Avatar-Fehler – Fallback aktiv.';
+    document.getElementById('status').textContent = '❌ Avatar-Fehler – Fallback aktiv.';
     document.getElementById('fallback').style.display = 'block';
   });
 }
 
-// --- MP3 vom Server abspielen ---
-function playAudio(url) {
-  if (!url) return false;
-  const audio = new Audio(url);
-  audio.play().catch(err => console.warn("⚠️ Audio konnte nicht abgespielt werden:", err));
-  return true;
+// --- Browser-Sprachsynthese ---
+function speak(text) {
+  if (!('speechSynthesis' in window)) {
+    console.warn('⚠️ speechSynthesis wird nicht unterstützt');
+    return;
+  }
+
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'de-DE';
+  u.pitch = 1;
+  u.rate = 1;
+
+  // Angenehme Google-Stimme bevorzugen (Chrome)
+  const voices = window.speechSynthesis.getVoices();
+  const prefer = voices.find(v => v.lang === "de-DE" && v.name.includes("Google"));
+  if (prefer) u.voice = prefer;
+
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(u);
 }
 
 // --- CHAT UI ---
@@ -82,12 +96,12 @@ function ui() {
       });
       text = await res.text();
     } catch (e) {
-      throw new Error('Netzwerkfehler: ' + e.message);
+      throw new Error('❌ Netzwerkfehler: ' + e.message);
     }
-    if (!res.ok) throw new Error(`HTTP ${res.status}: ${text?.slice(0,160)}`);
+    if (!res.ok) throw new Error(`❌ HTTP ${res.status}: ${text?.slice(0,160)}`);
     let data;
     try { data = JSON.parse(text); }
-    catch { throw new Error('Ungültiges JSON: ' + text?.slice(0,160)); }
+    catch { throw new Error('❌ Ungültiges JSON: ' + text?.slice(0,160)); }
     return data;
   }
 
@@ -101,16 +115,14 @@ function ui() {
     const typing = chatMsgs.lastChild.querySelector('.bubble');
 
     try {
-      const { reply, audio } = await ask(text);
+      const { reply } = await ask(text);
       typing.textContent = reply;
 
-      // 🎤 Avatar sprechen lassen mit MP3 aus chat.php
-      if (!playAudio(audio)) {
-        console.warn("⚠️ Keine Audio-URL, Text wird nur angezeigt.");
-      }
+      // Avatar sprechen lassen
+      speak(reply);
 
     } catch (err) {
-      typing.textContent = 'Fehler: ' + err.message;
+      typing.textContent = '❌ Fehler: ' + err.message;
     }
   });
 }
@@ -120,7 +132,7 @@ function ui() {
   try { await loadModelViewer(); initAvatar(); }
   catch (e) {
     console.error(e);
-    document.getElementById('status').textContent = 'model-viewer konnte nicht geladen werden. Fallback aktiv.';
+    document.getElementById('status').textContent = '❌ model-viewer konnte nicht geladen werden. Fallback aktiv.';
     document.getElementById('fallback').style.display = 'block';
   }
   ui();

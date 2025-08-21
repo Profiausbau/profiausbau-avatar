@@ -1,70 +1,48 @@
 // API-URL: direkt dein Node-Chatbot-Endpunkt
 const API_URL = 'https://www.profiausbau.com/api/chat.php';
 
-// --- Babylon.js Avatar Setup ---
-async function initBabylonAvatar() {
-  const canvas = document.getElementById("avatarCanvas");
-  if (!canvas) {
-    console.error("❌ Kein Canvas mit id=avatarCanvas gefunden.");
-    return null;
-  }
-
-  const engine = new BABYLON.Engine(canvas, true);
-  const scene = new BABYLON.Scene(engine);
-  scene.clearColor = new BABYLON.Color3(0.05, 0.07, 0.13);
-
-  // Kamera
-  const camera = new BABYLON.ArcRotateCamera("camera", 0, 1.4, 1.2, new BABYLON.Vector3(0, 1.6, 0), scene);
-  camera.attachControl(canvas, true);
-  camera.lowerRadiusLimit = 0.6;
-  camera.upperRadiusLimit = 2;
-  camera.wheelDeltaPercentage = 0.01;
-
-  // Licht → weiches Directional Light
-  const light = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(-1, -2, -1), scene);
-  light.intensity = 1.1;
-
-  // Avatar laden (ReadyPlayer.me GLB)
-  const result = await BABYLON.SceneLoader.ImportMeshAsync("", 
-    "https://models.readyplayer.me/68a75ecf645c86eae5be5aa5.glb", 
-    "", scene);
-
-  const avatar = result.meshes[0];
-  avatar.scaling = new BABYLON.Vector3(1, 1, 1);
-
-  engine.runRenderLoop(() => scene.render());
-
-  return { scene, avatar, engine };
-}
-
-// --- Fake Lipsync (nur Kopf + leichte "Mundbewegung") ---
-function makeLipsync(audioEl, avatar) {
-  let frame = 0;
-
-  const anim = () => {
-    if (audioEl.paused || audioEl.ended) {
-      avatar.scaling.y = 1; 
-      avatar.rotation.x = 0;
-      avatar.rotation.y = 0;
+// --- MODEL-VIEWER laden ---
+async function loadModelViewer() {
+  if (customElements.get && customElements.get('model-viewer')) return;
+  const sources = [
+    'https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js',
+    'https://cdn.jsdelivr.net/npm/@google/model-viewer/dist/model-viewer.min.js',
+  ];
+  for (const url of sources) {
+    try {
+      await import(url);
+      if (customElements.whenDefined) await customElements.whenDefined('model-viewer');
+      console.info('✅ model-viewer geladen von', url);
       return;
+    } catch (e) {
+      console.warn("⚠️ Fehler bei model-viewer", url, e);
     }
-
-    frame++;
-
-    // Mundbewegung → Skalierung Y leicht modulieren
-    avatar.scaling.y = 1 + Math.sin(frame * 0.3) * 0.015;
-
-    // Kopfbewegung → sehr subtil
-    avatar.rotation.x = Math.sin(frame * 0.08) * 0.02;
-    avatar.rotation.y = Math.sin(frame * 0.05) * 0.02;
-
-    requestAnimationFrame(anim);
-  };
-
-  audioEl.addEventListener("play", anim);
+  }
+  throw new Error('❌ model-viewer konnte nicht geladen werden');
 }
 
-// --- Browser-Sprachsynthese (Fallback) ---
+// --- Avatar einstellen ---
+function initAvatar() {
+  const mv = document.getElementById('rpm-avatar');
+  if (!mv) return;
+
+  // 🎯 Kamera direkt auf Kopf richten
+  mv.setAttribute("camera-orbit", "0deg 100deg 0.45m");  // Höhe + nah ran
+  mv.setAttribute("field-of-view", "7deg");            // enger Zoom
+  mv.setAttribute("camera-target", "0m 1.6m 0m");       // Kopfmitte statt Körper
+  mv.removeAttribute("auto-rotate");                    // keine Drehung
+
+  mv.addEventListener('load', () => {
+    document.getElementById('status').textContent = '✅ Avatar geladen.';
+  });
+  mv.addEventListener('error', () => {
+    document.getElementById('status').textContent = '❌ Avatar-Fehler – Fallback aktiv.';
+    document.getElementById('fallback').style.display = 'block';
+  });
+}
+
+
+// --- Browser-Sprachsynthese ---
 function speak(text) {
   if (!('speechSynthesis' in window)) {
     console.warn('⚠️ speechSynthesis wird nicht unterstützt');
@@ -76,6 +54,7 @@ function speak(text) {
   u.pitch = 1;
   u.rate = 1;
 
+  // Angenehme Google-Stimme bevorzugen (Chrome)
   const voices = window.speechSynthesis.getVoices();
   const prefer = voices.find(v => v.lang === "de-DE" && v.name.includes("Google"));
   if (prefer) u.voice = prefer;
@@ -128,74 +107,64 @@ function ui() {
     return data;
   }
 
-  chatForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const text = chatInput.value.trim();
-    if (!text) return;
-    addMsg('user', text);
-    chatInput.value = '';
-    addMsg('bot', '…');
-    const typing = chatMsgs.lastChild.querySelector('.bubble');
+ chatForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const text = chatInput.value.trim();
+  if (!text) return;
+  addMsg('user', text);
+  chatInput.value = '';
+  addMsg('bot', '…');
+  const typing = chatMsgs.lastChild.querySelector('.bubble');
 
-    try {
-      const { reply, audio } = await ask(text);
-      typing.textContent = reply;
+  try {
+    const { reply, audio } = await ask(text);
+    typing.textContent = reply;
 
-      // 🎧 Audio bevorzugen
-      if (audio) {
-        const audioPlayer = new Audio(audio);
+    // 🎧 Audio bevorzugen
+    if (audio) {
+      const audioPlayer = new Audio(audio);
 
-        // 🔊 Animierte Wellen hinzufügen
-        const indicator = document.createElement('span');
-        indicator.className = "audio-indicator";
-        indicator.innerHTML = `
-          <span class="audio-bar"></span>
-          <span class="audio-bar"></span>
-          <span class="audio-bar"></span>
-        `;
-        typing.appendChild(indicator);
+      // 🔊 Animierte Wellen hinzufügen
+      const indicator = document.createElement('span');
+      indicator.className = "audio-indicator";
+      indicator.innerHTML = `
+        <span class="audio-bar"></span>
+        <span class="audio-bar"></span>
+        <span class="audio-bar"></span>
+      `;
+      typing.appendChild(indicator);
 
-        // Avatar Kopf/Mund bewegen
-        if (window.avatarInstance) {
-          makeLipsync(audioPlayer, window.avatarInstance);
-        }
-
-        audioPlayer.play()
-          .then(() => {
-            audioPlayer.addEventListener('ended', () => {
-              indicator.remove();
-            });
-          })
-          .catch(err => {
-            console.warn("⚠️ MP3 konnte nicht abgespielt werden, fallback Stimme:", err);
+      audioPlayer.play()
+        .then(() => {
+          // Entfernen, wenn fertig
+          audioPlayer.addEventListener('ended', () => {
             indicator.remove();
-            speak(reply);
           });
+        })
+        .catch(err => {
+          console.warn("⚠️ MP3 konnte nicht abgespielt werden, fallback Stimme:", err);
+          indicator.remove();
+          speak(reply); // Fallback: Browserstimme
+        });
 
-      } else {
-        // Fallback: Browser-Stimme
-        speak(reply);
-      }
-
-    } catch (err) {
-      typing.textContent = '❌ Fehler: ' + err.message;
+    } else {
+      // Fallback: Browser-Stimme
+      speak(reply);
     }
-  });
+
+  } catch (err) {
+    typing.textContent = '❌ Fehler: ' + err.message;
+  }
+});
 }
 
 // --- Start ---
 (async function main() {
-  try { 
-    const { avatar } = await initBabylonAvatar();
-    if (avatar) {
-      window.avatarInstance = avatar;
-      document.getElementById('status').textContent = '✅ Avatar geladen.';
-    } else {
-      document.getElementById('status').textContent = '❌ Avatar konnte nicht geladen werden.';
-    }
-  } catch (e) {
+  try { await loadModelViewer(); initAvatar(); }
+  catch (e) {
     console.error(e);
-    document.getElementById('status').textContent = '❌ Avatar konnte nicht geladen werden.';
+    document.getElementById('status').textContent = '❌ model-viewer konnte nicht geladen werden. Fallback aktiv.';
+    document.getElementById('fallback').style.display = 'block';
   }
   ui();
 })();

@@ -122,13 +122,27 @@ function ui() {
 
     // 🎧 Audio bevorzugen
     if (audio) {
-      try {
-        const audioPlayer = new Audio(audio);
-        await audioPlayer.play();
-      } catch (err) {
-        console.warn("⚠️ MP3 konnte nicht abgespielt werden, fallback Stimme:", err);
-        speak(reply);
-      }
+      const audioPlayer = new Audio(audio);
+
+      // 🔊 Symbol hinzufügen
+      const indicator = document.createElement('span');
+      indicator.textContent = " 🔊";
+      indicator.style.opacity = "0.7";
+      typing.appendChild(indicator);
+
+      audioPlayer.play()
+        .then(() => {
+          // Entfernen, wenn fertig
+          audioPlayer.addEventListener('ended', () => {
+            indicator.remove();
+          });
+        })
+        .catch(err => {
+          console.warn("⚠️ MP3 konnte nicht abgespielt werden, fallback Stimme:", err);
+          indicator.remove();
+          speak(reply); // Fallback: Browserstimme
+        });
+
     } else {
       // Fallback: Browser-Stimme
       speak(reply);

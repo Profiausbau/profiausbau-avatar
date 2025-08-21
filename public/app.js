@@ -37,18 +37,46 @@ function initAvatar() {
   });
 }
 
-// --- Audio von ElevenLabs abspielen ---
-function playAudio(url) {
-  if (!url) return false;
-  try {
-    const audio = new Audio(url);
-    audio.play().catch(err => console.warn("⚠️ Audio-Play Fehler:", err));
-    return true;
-  } catch (e) {
-    console.warn("⚠️ Audio konnte nicht geladen werden:", e);
-    return false;
-  }
+// --- ElevenLabs Audio ---
+$voice_id = "21m00Tcm4TlvDq8ikWAM"; // Standard-Stimme
+$filename = "voice_" . uniqid() . ".mp3";
+$audio_file = __DIR__ . "/" . $filename;
+
+$tts_payload = json_encode([
+    "text" => $reply,
+    "model_id" => "eleven_multilingual_v2",
+    "voice_settings" => [
+        "stability" => 0.5,
+        "similarity_boost" => 0.8
+    ]
+]);
+
+$ch = curl_init("https://api.elevenlabs.io/v1/text-to-speech/$voice_id");
+curl_setopt_array($ch, [
+    CURLOPT_POST => true,
+    CURLOPT_POSTFIELDS => $tts_payload,
+    CURLOPT_HTTPHEADER => [
+        "Content-Type: application/json",
+        "xi-api-key: $ELEVEN_API_KEY"
+    ],
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_BINARYTRANSFER => true // ⚠️ ganz wichtig für MP3
+]);
+$audio = curl_exec($ch);
+
+if ($audio === false) {
+    error_log("ElevenLabs Error: " . curl_error($ch));
 }
+curl_close($ch);
+
+$audio_url = null;
+if ($audio && strlen($audio) > 1000) { // kleine JSON-Fehlerantwort rausfiltern
+    file_put_contents($audio_file, $audio);
+    $audio_url = "https://www.profiausbau.com/api/" . $filename;
+} else {
+    error_log("ElevenLabs lieferte keine gültige MP3-Datei");
+}
+
 
 // --- Fallback mit Browser-Sprachsynthese ---
 function speak(text) {

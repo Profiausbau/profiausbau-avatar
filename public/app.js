@@ -13,11 +13,11 @@ async function loadModelViewer() {
     try {
       await import(url);
       if (customElements.whenDefined) await customElements.whenDefined('model-viewer');
-      console.info('model-viewer geladen von', url);
+      console.info('✅ model-viewer geladen von', url);
       return;
     } catch (e) { lastErr = e; }
   }
-  throw lastErr || new Error('model-viewer konnte nicht geladen werden');
+  throw lastErr || new Error('❌ model-viewer konnte nicht geladen werden');
 }
 
 function initAvatar() {
@@ -25,9 +25,12 @@ function initAvatar() {
   const status = document.getElementById('status');
   const fallback = document.getElementById('fallback');
   if (!mv) return;
-  mv.addEventListener('load', () => { status.textContent = 'Avatar geladen.'; });
+
+  mv.src = "https://models.readyplayer.me/G010KY.glb"; // 👈 dein neuer Avatar-Link
+
+  mv.addEventListener('load', () => { status.textContent = '✅ Avatar geladen.'; });
   mv.addEventListener('error', () => {
-    status.textContent = 'Avatar-Fehler – zeige Fallback.';
+    status.textContent = '⚠️ Avatar-Fehler – zeige Fallback.';
     fallback.style.display = 'block';
   });
 }
@@ -46,30 +49,20 @@ function speak(text, mv) {
 
   u.onstart = () => {
     if (mv) {
-      // versuche Talking-Animation
-      try {
-        mv.setAttribute('animation-name', 'Talking');
-      } catch {
-        // Fallback: leichtes Nicken
-        let angle = 0;
-        mv._talkingInterval = setInterval(() => {
-          angle = (angle + 10) % 40;
-          mv.cameraOrbit = `0deg ${10 + Math.sin(angle / 10) * 5}deg 105%`;
-        }, 120);
-      }
+      // Fallback "sprechende Kopfbewegung"
+      let angle = 0;
+      mv._talkingInterval = setInterval(() => {
+        angle += 15;
+        mv.cameraOrbit = `${Math.sin(angle/10) * 5}deg 10deg 105%`;
+      }, 150);
     }
   };
 
   u.onend = () => {
-    if (mv) {
-      try {
-        mv.setAttribute('animation-name', 'Idle');
-      } catch {}
-      if (mv._talkingInterval) {
-        clearInterval(mv._talkingInterval);
-        mv._talkingInterval = null;
-        mv.cameraOrbit = "0deg 10deg 105%"; // zurücksetzen
-      }
+    if (mv && mv._talkingInterval) {
+      clearInterval(mv._talkingInterval);
+      mv._talkingInterval = null;
+      mv.cameraOrbit = "0deg 10deg 105%"; // zurücksetzen
     }
   };
 
@@ -119,7 +112,7 @@ function ui() {
     let data;
     try { data = JSON.parse(text); }
     catch { throw new Error('Ungültiges JSON: ' + text?.slice(0,160)); }
-    return data.reply || 'Ich habe eine Antwort erhalten, aber sie war leer.';
+    return data.reply || '⚠️ Antwort war leer.';
   }
 
   chatForm.addEventListener('submit', async (e) => {
@@ -147,7 +140,7 @@ function ui() {
   try { await loadModelViewer(); initAvatar(); }
   catch (e) {
     console.error(e);
-    document.getElementById('status').textContent = 'model-viewer konnte nicht geladen werden. Fallback aktiv.';
+    document.getElementById('status').textContent = '⚠️ model-viewer konnte nicht geladen werden. Fallback aktiv.';
     document.getElementById('fallback').style.display = 'block';
   }
   ui();

@@ -14,7 +14,7 @@ async function loadModelViewer() {
       if (customElements.whenDefined) await customElements.whenDefined('model-viewer');
       console.info('model-viewer geladen von', url);
       return;
-    } catch (e) { console.warn("⚠️ model-viewer Fehler bei", url, e); }
+    } catch (e) { console.warn("⚠️ Fehler bei model-viewer", url, e); }
   }
   throw new Error('model-viewer konnte nicht geladen werden');
 }
@@ -23,7 +23,7 @@ function initAvatar() {
   const mv = document.getElementById('rpm-avatar');
   if (!mv) return;
 
-  // Kamera so einstellen, dass nur Kopf sichtbar ist
+  // Kamera auf Kopf zoomen
   mv.setAttribute("camera-orbit", "0deg 90deg 1.2m");
   mv.setAttribute("field-of-view", "15deg");
   mv.removeAttribute("auto-rotate"); // nicht drehen
@@ -37,7 +37,7 @@ function initAvatar() {
   });
 }
 
-// --- Browser-Sprachsynthese (nur TTS, kein Labs) ---
+// --- Browser-Sprachsynthese ---
 function speak(text) {
   if (!('speechSynthesis' in window)) {
     console.warn('⚠️ speechSynthesis wird nicht unterstützt');
@@ -49,7 +49,7 @@ function speak(text) {
   u.pitch = 1;
   u.rate = 1;
 
-  // Versuche Google-Stimme zu wählen, wenn verfügbar
+  // Angenehme Google-Stimme bevorzugen (nur in Chrome verfügbar)
   const voices = window.speechSynthesis.getVoices();
   const prefer = voices.find(v => v.lang === "de-DE" && v.name.includes("Google"));
   if (prefer) u.voice = prefer;
@@ -115,7 +115,7 @@ function ui() {
       const { reply } = await ask(text);
       typing.textContent = reply;
 
-      // Browser-TTS abspielen
+      // Avatar sprechen lassen
       speak(reply);
 
     } catch (err) {

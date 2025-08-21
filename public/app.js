@@ -13,11 +13,11 @@ async function loadModelViewer() {
     try {
       await import(url);
       if (customElements.whenDefined) await customElements.whenDefined('model-viewer');
-      console.info('✅ model-viewer geladen von', url);
+      console.info('model-viewer geladen von', url);
       return;
     } catch (e) { lastErr = e; }
   }
-  throw lastErr || new Error('❌ model-viewer konnte nicht geladen werden');
+  throw lastErr || new Error('model-viewer konnte nicht geladen werden');
 }
 
 function initAvatar() {
@@ -25,49 +25,30 @@ function initAvatar() {
   const status = document.getElementById('status');
   const fallback = document.getElementById('fallback');
   if (!mv) return;
-
-  mv.src = "https://models.readyplayer.me/G010KY.glb"; // 👈 dein neuer Avatar-Link
-
-  mv.addEventListener('load', () => { status.textContent = '✅ Avatar geladen.'; });
+  mv.addEventListener('load', () => { status.textContent = 'Avatar geladen.'; });
   mv.addEventListener('error', () => {
-    status.textContent = '⚠️ Avatar-Fehler – zeige Fallback.';
+    status.textContent = 'Avatar-Fehler – zeige Fallback.';
     fallback.style.display = 'block';
   });
 }
 
-// --- Sprach-Ausgabe (TTS) + Avatar-Animation ---
-function speak(text, mv) {
-  if (!('speechSynthesis' in window)) {
-    console.warn('⚠️ speechSynthesis wird nicht unterstützt');
-    return;
-  }
+// --- Avatar "sprechen lassen" über Audio ---
+function playAudio(url, mv) {
+  if (!url) return;
+  const audio = new Audio(url);
+  audio.play().catch(err => console.warn("⚠️ Audio konnte nicht abgespielt werden:", err));
 
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = 'de-DE';
-  u.pitch = 1;
-  u.rate = 1;
-
-  u.onstart = () => {
+  // Avatar Animation während Audio läuft
+  audio.onplay = () => {
     if (mv) {
-      // Fallback "sprechende Kopfbewegung"
-      let angle = 0;
-      mv._talkingInterval = setInterval(() => {
-        angle += 15;
-        mv.cameraOrbit = `${Math.sin(angle/10) * 5}deg 10deg 105%`;
-      }, 150);
+      mv.setAttribute('animation-name', 'Talking');
     }
   };
-
-  u.onend = () => {
-    if (mv && mv._talkingInterval) {
-      clearInterval(mv._talkingInterval);
-      mv._talkingInterval = null;
-      mv.cameraOrbit = "0deg 10deg 105%"; // zurücksetzen
+  audio.onended = () => {
+    if (mv) {
+      mv.setAttribute('animation-name', 'Idle');
     }
   };
-
-  window.speechSynthesis.cancel();
-  window.speechSynthesis.speak(u);
 }
 
 // --- CHAT UI ---
@@ -112,7 +93,7 @@ function ui() {
     let data;
     try { data = JSON.parse(text); }
     catch { throw new Error('Ungültiges JSON: ' + text?.slice(0,160)); }
-    return data.reply || '⚠️ Antwort war leer.';
+    return data;
   }
 
   chatForm.addEventListener('submit', async (e) => {
@@ -125,11 +106,12 @@ function ui() {
     const typing = chatMsgs.lastChild.querySelector('.bubble');
 
     try {
-      const reply = await ask(text);
+      const { reply, audio } = await ask(text);
       typing.textContent = reply;
 
-      // Avatar sprechen lassen
-      speak(reply, mv);
+      // Avatar "sprechen" lassen mit Audio-File von PHP
+      playAudio(audio, mv);
+
     } catch (err) {
       typing.textContent = 'Fehler: ' + err.message;
     }
@@ -140,7 +122,7 @@ function ui() {
   try { await loadModelViewer(); initAvatar(); }
   catch (e) {
     console.error(e);
-    document.getElementById('status').textContent = '⚠️ model-viewer konnte nicht geladen werden. Fallback aktiv.';
+    document.getElementById('status').textContent = 'model-viewer konnte nicht geladen werden. Fallback aktiv.';
     document.getElementById('fallback').style.display = 'block';
   }
   ui();

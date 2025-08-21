@@ -107,26 +107,37 @@ function ui() {
     return data;
   }
 
-  chatForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const text = chatInput.value.trim();
-    if (!text) return;
-    addMsg('user', text);
-    chatInput.value = '';
-    addMsg('bot', '…');
-    const typing = chatMsgs.lastChild.querySelector('.bubble');
+ chatForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const text = chatInput.value.trim();
+  if (!text) return;
+  addMsg('user', text);
+  chatInput.value = '';
+  addMsg('bot', '…');
+  const typing = chatMsgs.lastChild.querySelector('.bubble');
 
-    try {
-      const { reply } = await ask(text);
-      typing.textContent = reply;
+  try {
+    const { reply, audio } = await ask(text);
+    typing.textContent = reply;
 
-      // Avatar sprechen lassen
+    // 🎧 Audio bevorzugen
+    if (audio) {
+      try {
+        const audioPlayer = new Audio(audio);
+        await audioPlayer.play();
+      } catch (err) {
+        console.warn("⚠️ MP3 konnte nicht abgespielt werden, fallback Stimme:", err);
+        speak(reply);
+      }
+    } else {
+      // Fallback: Browser-Stimme
       speak(reply);
-
-    } catch (err) {
-      typing.textContent = '❌ Fehler: ' + err.message;
     }
-  });
+
+  } catch (err) {
+    typing.textContent = '❌ Fehler: ' + err.message;
+  }
+});
 }
 
 // --- Start ---

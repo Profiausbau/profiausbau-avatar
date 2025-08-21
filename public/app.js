@@ -1,66 +1,50 @@
-// API-URL: direkt dein Node-Chatbot-Endpunkt
+// API-URL: dein PHP-Chatbot-Endpunkt
 const API_URL = 'https://www.profiausbau.com/api/chat.php';
 
-// --- MODEL-VIEWER laden ---
-async function loadModelViewer() {
-  if (customElements.get && customElements.get('model-viewer')) return;
-  const sources = [
-    'https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js',
-    'https://cdn.jsdelivr.net/npm/@google/model-viewer/dist/model-viewer.min.js',
-  ];
-  for (const url of sources) {
-    try {
-      await import(url);
-      if (customElements.whenDefined) await customElements.whenDefined('model-viewer');
-      console.info('✅ model-viewer geladen von', url);
-      return;
-    } catch (e) {
-      console.warn("⚠️ Fehler bei model-viewer", url, e);
+// --- Avatar über D-ID sprechen lassen ---
+async function playAvatar(text) {
+  const container = document.getElementById("avatarContainer");
+  container.innerHTML = "<span style='color:#94a3b8'>🎥 Erzeuge Avatar Video…</span>";
+
+  try {
+    const res = await fetch("https://api.d-id.com/talks", {
+      method: "POST",
+      headers: {
+        "Authorization": "Basic " + btoa("YOUR_DID_API_KEY:"), // ⚠️ HIER API Key einsetzen
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        script: {
+          type: "text",
+          input: text,
+          provider: { type: "microsoft", voice_id: "de-DE-KatjaNeural" }
+        },
+        // Dein Avatar-Bild als Grundlage (PNG/JPG), oder D-ID Preset-ID
+        source_url: "https://i.postimg.cc/XYZ/avatar.png"
+      })
+    });
+    const data = await res.json();
+
+    if (!data.result_url) {
+      throw new Error("D-ID API hat kein Video zurückgegeben.");
     }
+
+    // Video einfügen
+    container.innerHTML = "";
+    const video = document.createElement("video");
+    video.src = data.result_url;
+    video.autoplay = true;
+    video.playsInline = true;
+    video.muted = false;
+    video.controls = false;
+    video.style.width = "100%";
+    video.style.height = "100%";
+    container.appendChild(video);
+
+  } catch (err) {
+    console.error("Avatar-Fehler", err);
+    container.innerHTML = "<p style='color:red'>❌ Avatar konnte nicht geladen werden.</p>";
   }
-  throw new Error('❌ model-viewer konnte nicht geladen werden');
-}
-
-// --- Avatar einstellen ---
-function initAvatar() {
-  const mv = document.getElementById('rpm-avatar');
-  if (!mv) return;
-
-  // 🎯 Kamera direkt auf Kopf richten
-  mv.setAttribute("camera-orbit", "0deg 100deg 0.45m");  // Höhe + nah ran
-  mv.setAttribute("field-of-view", "7deg");            // enger Zoom
-  mv.setAttribute("camera-target", "0m 1.6m 0m");       // Kopfmitte statt Körper
-  mv.removeAttribute("auto-rotate");                    // keine Drehung
-
-  mv.addEventListener('load', () => {
-    document.getElementById('status').textContent = '✅ Avatar geladen.';
-  });
-  mv.addEventListener('error', () => {
-    document.getElementById('status').textContent = '❌ Avatar-Fehler – Fallback aktiv.';
-    document.getElementById('fallback').style.display = 'block';
-  });
-}
-
-
-// --- Browser-Sprachsynthese ---
-function speak(text) {
-  if (!('speechSynthesis' in window)) {
-    console.warn('⚠️ speechSynthesis wird nicht unterstützt');
-    return;
-  }
-
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = 'de-DE';
-  u.pitch = 1;
-  u.rate = 1;
-
-  // Angenehme Google-Stimme bevorzugen (Chrome)
-  const voices = window.speechSynthesis.getVoices();
-  const prefer = voices.find(v => v.lang === "de-DE" && v.name.includes("Google"));
-  if (prefer) u.voice = prefer;
-
-  window.speechSynthesis.cancel();
-  window.speechSynthesis.speak(u);
 }
 
 // --- CHAT UI ---
@@ -107,64 +91,29 @@ function ui() {
     return data;
   }
 
- chatForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const text = chatInput.value.trim();
-  if (!text) return;
-  addMsg('user', text);
-  chatInput.value = '';
-  addMsg('bot', '…');
-  const typing = chatMsgs.lastChild.querySelector('.bubble');
+  chatForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const text = chatInput.value.trim();
+    if (!text) return;
+    addMsg('user', text);
+    chatInput.value = '';
+    addMsg('bot', '…');
+    const typing = chatMsgs.lastChild.querySelector('.bubble');
 
-  try {
-    const { reply, audio } = await ask(text);
-    typing.textContent = reply;
+    try {
+      const { reply } = await ask(text);
+      typing.textContent = reply;
 
-    // 🎧 Audio bevorzugen
-    if (audio) {
-      const audioPlayer = new Audio(audio);
+      // Avatar sprechen lassen
+      playAvatar(reply);
 
-      // 🔊 Animierte Wellen hinzufügen
-      const indicator = document.createElement('span');
-      indicator.className = "audio-indicator";
-      indicator.innerHTML = `
-        <span class="audio-bar"></span>
-        <span class="audio-bar"></span>
-        <span class="audio-bar"></span>
-      `;
-      typing.appendChild(indicator);
-
-      audioPlayer.play()
-        .then(() => {
-          // Entfernen, wenn fertig
-          audioPlayer.addEventListener('ended', () => {
-            indicator.remove();
-          });
-        })
-        .catch(err => {
-          console.warn("⚠️ MP3 konnte nicht abgespielt werden, fallback Stimme:", err);
-          indicator.remove();
-          speak(reply); // Fallback: Browserstimme
-        });
-
-    } else {
-      // Fallback: Browser-Stimme
-      speak(reply);
+    } catch (err) {
+      typing.textContent = '❌ Fehler: ' + err.message;
     }
-
-  } catch (err) {
-    typing.textContent = '❌ Fehler: ' + err.message;
-  }
-});
+  });
 }
 
 // --- Start ---
-(async function main() {
-  try { await loadModelViewer(); initAvatar(); }
-  catch (e) {
-    console.error(e);
-    document.getElementById('status').textContent = '❌ model-viewer konnte nicht geladen werden. Fallback aktiv.';
-    document.getElementById('fallback').style.display = 'block';
-  }
+(function main() {
   ui();
 })();

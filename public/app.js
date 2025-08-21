@@ -124,10 +124,14 @@ function ui() {
     if (audio) {
       const audioPlayer = new Audio(audio);
 
-      // 🔊 Symbol hinzufügen
+      // 🔊 Animierte Wellen hinzufügen
       const indicator = document.createElement('span');
-      indicator.textContent = " 🔊";
-      indicator.style.opacity = "0.7";
+      indicator.className = "audio-indicator";
+      indicator.innerHTML = `
+        <span class="audio-bar"></span>
+        <span class="audio-bar"></span>
+        <span class="audio-bar"></span>
+      `;
       typing.appendChild(indicator);
 
       audioPlayer.play()

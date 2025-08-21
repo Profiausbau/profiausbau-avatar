@@ -25,6 +25,12 @@ function initAvatar() {
   const status = document.getElementById('status');
   const fallback = document.getElementById('fallback');
   if (!mv) return;
+
+  // Nur Kopf im Bild
+  mv.setAttribute("camera-orbit", "0deg 90deg 1.2m");
+  mv.setAttribute("field-of-view", "15deg");
+  mv.removeAttribute("auto-rotate"); // keine Drehung
+
   mv.addEventListener('load', () => { status.textContent = 'Avatar geladen.'; });
   mv.addEventListener('error', () => {
     status.textContent = 'Avatar-Fehler – zeige Fallback.';
@@ -32,23 +38,25 @@ function initAvatar() {
   });
 }
 
-// --- Avatar "sprechen lassen" über Audio ---
-function playAudio(url, mv) {
-  if (!url) return;
-  const audio = new Audio(url);
-  audio.play().catch(err => console.warn("⚠️ Audio konnte nicht abgespielt werden:", err));
+// --- Avatar sprechen lassen (TTS, kein Zucken) ---
+function speak(text) {
+  if (!('speechSynthesis' in window)) {
+    console.warn('⚠️ speechSynthesis wird nicht unterstützt');
+    return;
+  }
 
-  // Avatar Animation während Audio läuft
-  audio.onplay = () => {
-    if (mv) {
-      mv.setAttribute('animation-name', 'Talking');
-    }
-  };
-  audio.onended = () => {
-    if (mv) {
-      mv.setAttribute('animation-name', 'Idle');
-    }
-  };
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'de-DE';
+  u.pitch = 1;
+  u.rate = 1;
+
+  // Stimme angenehmer wählen, falls verfügbar
+  const voices = window.speechSynthesis.getVoices();
+  const prefer = voices.find(v => v.lang === "de-DE" && v.name.includes("Google"));
+  if (prefer) u.voice = prefer;
+
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(u);
 }
 
 // --- CHAT UI ---
@@ -58,7 +66,6 @@ function ui() {
   const chatForm   = document.getElementById('chatForm');
   const chatInput  = document.getElementById('chatInput');
   const chatMsgs   = document.getElementById('chatMsgs');
-  const mv         = document.getElementById('rpm-avatar');
 
   chatToggle.addEventListener('click', () => {
     const open = chatWindow.style.display === 'block';
@@ -106,11 +113,11 @@ function ui() {
     const typing = chatMsgs.lastChild.querySelector('.bubble');
 
     try {
-      const { reply, audio } = await ask(text);
+      const { reply } = await ask(text);
       typing.textContent = reply;
 
-      // Avatar "sprechen" lassen mit Audio-File von PHP
-      playAudio(audio, mv);
+      // Avatar sprechen lassen (ruhig, kein Zucken)
+      speak(reply);
 
     } catch (err) {
       typing.textContent = 'Fehler: ' + err.message;

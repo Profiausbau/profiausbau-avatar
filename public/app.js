@@ -27,8 +27,8 @@ function initAvatar() {
   if (!mv) return;
 
   // 🎯 Kamera direkt auf Kopf richten
-  mv.setAttribute("camera-orbit", "0deg 100deg 0.8m");  // Höhe + nah ran
-  mv.setAttribute("field-of-view", "10deg");            // enger Zoom
+  mv.setAttribute("camera-orbit", "0deg 100deg 0.45m");  // Höhe + nah ran
+  mv.setAttribute("field-of-view", "7deg");            // enger Zoom
   mv.setAttribute("camera-target", "0m 1.6m 0m");       // Kopfmitte statt Körper
   mv.removeAttribute("auto-rotate");                    // keine Drehung
 

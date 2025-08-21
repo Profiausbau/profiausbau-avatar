@@ -12,11 +12,13 @@ async function loadModelViewer() {
     try {
       await import(url);
       if (customElements.whenDefined) await customElements.whenDefined('model-viewer');
-      console.info('model-viewer geladen von', url);
+      console.info('✅ model-viewer geladen von', url);
       return;
-    } catch (e) { console.warn("⚠️ Fehler bei model-viewer", url, e); }
+    } catch (e) {
+      console.warn("⚠️ Fehler bei model-viewer", url, e);
+    }
   }
-  throw new Error('model-viewer konnte nicht geladen werden');
+  throw new Error('❌ model-viewer konnte nicht geladen werden');
 }
 
 function initAvatar() {
@@ -37,25 +39,12 @@ function initAvatar() {
   });
 }
 
-// --- Browser-Sprachsynthese ---
-function speak(text) {
-  if (!('speechSynthesis' in window)) {
-    console.warn('⚠️ speechSynthesis wird nicht unterstützt');
-    return;
-  }
-
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = 'de-DE';
-  u.pitch = 1;
-  u.rate = 1;
-
-  // Angenehme Google-Stimme bevorzugen (nur in Chrome verfügbar)
-  const voices = window.speechSynthesis.getVoices();
-  const prefer = voices.find(v => v.lang === "de-DE" && v.name.includes("Google"));
-  if (prefer) u.voice = prefer;
-
-  window.speechSynthesis.cancel();
-  window.speechSynthesis.speak(u);
+// --- MP3 vom Server abspielen ---
+function playAudio(url) {
+  if (!url) return false;
+  const audio = new Audio(url);
+  audio.play().catch(err => console.warn("⚠️ Audio konnte nicht abgespielt werden:", err));
+  return true;
 }
 
 // --- CHAT UI ---
@@ -112,11 +101,13 @@ function ui() {
     const typing = chatMsgs.lastChild.querySelector('.bubble');
 
     try {
-      const { reply } = await ask(text);
+      const { reply, audio } = await ask(text);
       typing.textContent = reply;
 
-      // Avatar sprechen lassen
-      speak(reply);
+      // 🎤 Avatar sprechen lassen mit MP3 aus chat.php
+      if (!playAudio(audio)) {
+        console.warn("⚠️ Keine Audio-URL, Text wird nur angezeigt.");
+      }
 
     } catch (err) {
       typing.textContent = 'Fehler: ' + err.message;

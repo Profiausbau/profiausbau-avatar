@@ -38,19 +38,24 @@ function initAvatar() {
   });
 }
 
-// --- Avatar sprechen lassen (TTS, kein Zucken) ---
-function speak(text) {
+// --- ElevenLabs Audio abspielen ---
+function playAudio(url) {
+  if (!url) return;
+  const audio = new Audio(url);
+  audio.play().catch(err => console.warn("⚠️ Audio konnte nicht abgespielt werden:", err));
+}
+
+// --- Fallback: Browser TTS ---
+function speakFallback(text) {
   if (!('speechSynthesis' in window)) {
     console.warn('⚠️ speechSynthesis wird nicht unterstützt');
     return;
   }
-
   const u = new SpeechSynthesisUtterance(text);
   u.lang = 'de-DE';
   u.pitch = 1;
   u.rate = 1;
 
-  // Stimme angenehmer wählen, falls verfügbar
   const voices = window.speechSynthesis.getVoices();
   const prefer = voices.find(v => v.lang === "de-DE" && v.name.includes("Google"));
   if (prefer) u.voice = prefer;
@@ -113,11 +118,14 @@ function ui() {
     const typing = chatMsgs.lastChild.querySelector('.bubble');
 
     try {
-      const { reply } = await ask(text);
+      const { reply, audio } = await ask(text);
       typing.textContent = reply;
 
-      // Avatar sprechen lassen (ruhig, kein Zucken)
-      speak(reply);
+      if (audio) {
+        playAudio(audio);   // 🎵 Nutze ElevenLabs
+      } else {
+        speakFallback(reply); // Fallback Browser-Stimme
+      }
 
     } catch (err) {
       typing.textContent = 'Fehler: ' + err.message;

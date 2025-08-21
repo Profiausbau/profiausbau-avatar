@@ -1,52 +1,57 @@
 // API-URL: dein PHP-Endpunkt auf profiausbau.com
 const API_URL = 'https://www.profiausbau.com/api/chat.php';
 
-// --- MODEL-VIEWER sicher laden (als ES-Modul) ---
+// --- MODEL-VIEWER laden ---
 async function loadModelViewer() {
   if (customElements.get && customElements.get('model-viewer')) return;
   const sources = [
     'https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js',
     'https://cdn.jsdelivr.net/npm/@google/model-viewer/dist/model-viewer.min.js',
   ];
-  let lastErr;
   for (const url of sources) {
     try {
       await import(url);
       if (customElements.whenDefined) await customElements.whenDefined('model-viewer');
       console.info('model-viewer geladen von', url);
       return;
-    } catch (e) { lastErr = e; }
+    } catch (e) { console.warn("⚠️ model-viewer Fehler bei", url, e); }
   }
-  throw lastErr || new Error('model-viewer konnte nicht geladen werden');
+  throw new Error('model-viewer konnte nicht geladen werden');
 }
 
 function initAvatar() {
   const mv = document.getElementById('rpm-avatar');
-  const status = document.getElementById('status');
-  const fallback = document.getElementById('fallback');
   if (!mv) return;
 
-  // Nur Kopf im Bild
+  // Kamera so einstellen, dass nur Kopf sichtbar ist
   mv.setAttribute("camera-orbit", "0deg 90deg 1.2m");
   mv.setAttribute("field-of-view", "15deg");
-  mv.removeAttribute("auto-rotate"); // keine Drehung
+  mv.removeAttribute("auto-rotate"); // nicht drehen
 
-  mv.addEventListener('load', () => { status.textContent = 'Avatar geladen.'; });
+  mv.addEventListener('load', () => {
+    document.getElementById('status').textContent = 'Avatar geladen.';
+  });
   mv.addEventListener('error', () => {
-    status.textContent = 'Avatar-Fehler – zeige Fallback.';
-    fallback.style.display = 'block';
+    document.getElementById('status').textContent = 'Avatar-Fehler – Fallback aktiv.';
+    document.getElementById('fallback').style.display = 'block';
   });
 }
 
-// --- ElevenLabs Audio abspielen ---
+// --- Audio von ElevenLabs abspielen ---
 function playAudio(url) {
-  if (!url) return;
-  const audio = new Audio(url);
-  audio.play().catch(err => console.warn("⚠️ Audio konnte nicht abgespielt werden:", err));
+  if (!url) return false;
+  try {
+    const audio = new Audio(url);
+    audio.play().catch(err => console.warn("⚠️ Audio-Play Fehler:", err));
+    return true;
+  } catch (e) {
+    console.warn("⚠️ Audio konnte nicht geladen werden:", e);
+    return false;
+  }
 }
 
-// --- Fallback: Browser TTS ---
-function speakFallback(text) {
+// --- Fallback mit Browser-Sprachsynthese ---
+function speak(text) {
   if (!('speechSynthesis' in window)) {
     console.warn('⚠️ speechSynthesis wird nicht unterstützt');
     return;
@@ -56,6 +61,7 @@ function speakFallback(text) {
   u.pitch = 1;
   u.rate = 1;
 
+  // Angenehme Stimme wählen (Google Deutsch)
   const voices = window.speechSynthesis.getVoices();
   const prefer = voices.find(v => v.lang === "de-DE" && v.name.includes("Google"));
   if (prefer) u.voice = prefer;
@@ -101,7 +107,7 @@ function ui() {
     } catch (e) {
       throw new Error('Netzwerkfehler: ' + e.message);
     }
-    if (!res.ok) throw new Error(`HTTP ${res.status}: ${text?.slice(0,160) || ''}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${text?.slice(0,160)}`);
     let data;
     try { data = JSON.parse(text); }
     catch { throw new Error('Ungültiges JSON: ' + text?.slice(0,160)); }
@@ -121,10 +127,15 @@ function ui() {
       const { reply, audio } = await ask(text);
       typing.textContent = reply;
 
+      // 1. Versuche ElevenLabs-MP3
+      let ok = false;
       if (audio) {
-        playAudio(audio);   // 🎵 Nutze ElevenLabs
-      } else {
-        speakFallback(reply); // Fallback Browser-Stimme
+        ok = playAudio(audio);
+      }
+
+      // 2. Fallback Browser-Stimme
+      if (!ok) {
+        speak(reply);
       }
 
     } catch (err) {
@@ -133,6 +144,7 @@ function ui() {
   });
 }
 
+// --- Start ---
 (async function main() {
   try { await loadModelViewer(); initAvatar(); }
   catch (e) {

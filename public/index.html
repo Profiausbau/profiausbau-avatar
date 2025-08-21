@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Profiausbau – Avatar + Chat (GitHub Pages)</title>
+  <title>Profiausbau – Avatar + Chat</title>
   <style>
     :root { color-scheme: dark; }
     body { margin:0; font-family: system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif; background:#0b1220; color:#e5e7eb;}
@@ -35,7 +35,7 @@
         <circle cx="12" cy="9" r="3" fill="white"/>
         <rect x="7" y="14" width="10" height="4" rx="2" fill="white"/>
       </svg>
-      <h1 style="margin:0;font-size:20px;">3D Avatar + Chat</h1>
+      <h1 style="margin:0;font-size:20px;">3D Avatar + Sprach-Chat</h1>
     </div>
 
     <!-- Avatar -->
@@ -44,27 +44,27 @@
       alt="3D Avatar"
       camera-controls
       auto-rotate
-      environment-image="neutral"
-      ar
-      ar-modes="webxr scene-viewer quick-look">
+      environment-image="neutral">
     </model-viewer>
 
-    <div id="status" class="status">Lade Avatar…</div>
+    <div id="status" class="status">⏳ Lade Avatar…</div>
 
-    <!-- Fallback (falls model-viewer blockiert ist) -->
+    <!-- Fallback -->
     <div id="fallback" style="display:none;">
       <iframe
-        src="https://sandbox.babylonjs.com/?assetUrl=https://models.readyplayer.me/689dbd10a883f79aa03b9191.glb"
+        src="https://sandbox.babylonjs.com/?assetUrl=https://models.readyplayer.me/G010KY.glb"
         style="width:100%;height:520px;border:0;border-radius:16px;background:#0e172a"
         loading="lazy" allowfullscreen></iframe>
     </div>
   </div>
 
-  <!-- Chat (floating) -->
+  <!-- Chat -->
   <div class="chatbot" id="chatbot">
     <button class="chatbot-toggle" id="chatToggle">
       <svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true">
-        <circle cx="12" cy="12" r="10" fill="#0EA5E9"/><circle cx="12" cy="9" r="3" fill="white"/><rect x="7" y="14" width="10" height="4" rx="2" fill="white"/>
+        <circle cx="12" cy="12" r="10" fill="#0EA5E9"/>
+        <circle cx="12" cy="9" r="3" fill="white"/>
+        <rect x="7" y="14" width="10" height="4" rx="2" fill="white"/>
       </svg>
       <span>Mit mir chatten</span>
     </button>
@@ -78,6 +78,7 @@
     </div>
   </div>
 
+  <!-- Dein JavaScript -->
   <script type="module" src="./app.js"></script>
 </body>
 </html>

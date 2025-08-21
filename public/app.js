@@ -5,7 +5,6 @@ const API_URL = 'https://www.profiausbau.com/api/chat.php';
 async function loadModelViewer() {
   if (customElements.get && customElements.get('model-viewer')) return;
   const sources = [
-    // optional: eigene Kopie hosten -> './model-viewer.min.js'
     'https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js',
     'https://cdn.jsdelivr.net/npm/@google/model-viewer/dist/model-viewer.min.js',
   ];
@@ -33,6 +32,25 @@ function initAvatar() {
   });
 }
 
+// --- Sprach-Ausgabe (TTS) ---
+function speak(text, onStart, onEnd) {
+  if (!('speechSynthesis' in window)) {
+    console.warn('⚠️ speechSynthesis wird nicht unterstützt');
+    return;
+  }
+
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'de-DE';
+  u.pitch = 1;
+  u.rate = 1;
+
+  if (onStart) u.onstart = onStart;
+  if (onEnd) u.onend = onEnd;
+
+  window.speechSynthesis.cancel(); // evtl. alte Stimmen stoppen
+  window.speechSynthesis.speak(u);
+}
+
 // --- CHAT UI ---
 function ui() {
   const chatToggle = document.getElementById('chatToggle');
@@ -40,6 +58,7 @@ function ui() {
   const chatForm   = document.getElementById('chatForm');
   const chatInput  = document.getElementById('chatInput');
   const chatMsgs   = document.getElementById('chatMsgs');
+  const mv         = document.getElementById('rpm-avatar');
 
   chatToggle.addEventListener('click', () => {
     const open = chatWindow.style.display === 'block';
@@ -85,14 +104,26 @@ function ui() {
     chatInput.value = '';
     addMsg('bot', '…');
     const typing = chatMsgs.lastChild.querySelector('.bubble');
+
     try {
       const reply = await ask(text);
       typing.textContent = reply;
-      const mv = document.getElementById('rpm-avatar');
+
+      // Avatar Animation + Sprechen
       if (mv) {
         const prev = mv.autoRotate;
         mv.autoRotate = true;
-        setTimeout(()=> mv.autoRotate = prev, 1500);
+
+        speak(reply,
+          () => { // onStart
+            mv.autoRotate = true;
+          },
+          () => { // onEnd
+            mv.autoRotate = prev;
+          }
+        );
+      } else {
+        speak(reply);
       }
     } catch (err) {
       typing.textContent = 'Fehler: ' + err.message;

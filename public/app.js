@@ -1,34 +1,24 @@
 // API-URL: dein PHP-Chatbot-Endpunkt
 const API_URL = 'https://www.profiausbau.com/api/chat.php';
 
+// D-ID Proxy Endpoint (läuft auf deinem Server)
+const DID_URL = 'https://www.profiausbau.com/api/did.php';
+
 // --- Avatar über D-ID sprechen lassen ---
 async function playAvatar(text) {
   const container = document.getElementById("avatarContainer");
   container.innerHTML = "<span style='color:#94a3b8'>🎥 Erzeuge Avatar Video…</span>";
 
   try {
-    const res = await fetch("https://api.d-id.com/talks", {
+    const res = await fetch(DID_URL, {
       method: "POST",
-      headers: {
-        // ⚠️ Wichtig: deinen echten API-Key hier einsetzen
-        "Authorization": "Basic c3VjaG1hc2NoaW5lbmFhY2hlbkBnbWFpbC5jb20:2aPTcEiFRHtUwjn9eWnRW",
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        script: {
-          type: "text",
-          input: text,
-          provider: { type: "microsoft", voice_id: "de-DE-KatjaNeural" }
-        },
-        // 👉 Hier kannst du dein Avatar-Bild (PNG/JPG) hinterlegen
-        // oder eine D-ID Vorlage nutzen
-        source_url: "https://i.postimg.cc/XYZ/avatar.png"
-      })
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text })
     });
     const data = await res.json();
 
     if (!data.result_url) {
-      throw new Error("D-ID API hat kein Video zurückgegeben: " + JSON.stringify(data));
+      throw new Error("D-ID Proxy hat kein Video zurückgegeben: " + JSON.stringify(data));
     }
 
     // Video einfügen
@@ -41,7 +31,6 @@ async function playAvatar(text) {
     video.controls = false;
     video.style.width = "100%";
     video.style.height = "100%";
-    video.style.borderRadius = "16px";
     container.appendChild(video);
 
   } catch (err) {
@@ -107,7 +96,7 @@ function ui() {
       const { reply } = await ask(text);
       typing.textContent = reply;
 
-      // Avatar sprechen lassen
+      // Avatar sprechen lassen (über deinen Proxy)
       playAvatar(reply);
 
     } catch (err) {
